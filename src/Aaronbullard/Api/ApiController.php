@@ -10,14 +10,18 @@ abstract class ApiController extends Controller{
 	 */
 	protected $statusCode = 200;
 
+	protected $redirect_to = NULL;
+
+	protected $status = 'success';
+
 	/**
 	 * Set the status code for the response
 	 * @param int $statusCode
-	 * @return  Aaronbullard\Api\ApiController
+	 * @return  Viimed\Api\ApiController
 	 */
-	public function setStatusCode($statusCode)
+	protected function setStatusCode($statusCode)
 	{
-		if( !is_integer($statusCode) )
+		if( ! is_integer($statusCode) )
 		{
 			throw new ApiControllerException("Status Code must be an integer");
 		}
@@ -31,9 +35,43 @@ abstract class ApiController extends Controller{
 	 * Get the status code for the response
 	 * @return int status code
 	 */
-	public function getStatusCode()
+	protected function getStatusCode()
 	{
 		return (int)$this->statusCode;
+	}
+
+	public function setRedirection($url)
+	{
+		if(filter_var($url, FILTER_VALIDATE_URL) === FALSE)
+		{
+			throw new ApiControllerException("Redirect must be a valid url!");
+		}
+
+		$this->redirect_to = $url;
+
+		return $this;
+	}
+
+	public function getRedirection()
+	{
+		return $this->redirect_to;
+	}
+
+	public function setStatus($status = 'success')
+	{
+		if( ! in_array($status, ['success', 'error']))
+		{
+			throw new ApiControllerException("Status must be either 'success' or 'error'!");
+		}
+
+		$this->status = $status;
+
+		return $this;
+	}
+
+	public function getStatus()
+	{
+		return $this->status;
 	}
 
 	/**
@@ -42,8 +80,11 @@ abstract class ApiController extends Controller{
 	 * @param  array $headers Response headers
 	 * @return json
 	 */
-	public function respond($data, $headers = [])
+	protected function respond($data, $headers = [])
 	{
+		$data['status'] 		= $this->getStatus();
+		$data['redirect_to'] 	= $this->getRedirection();
+
 		return Response::json($data, $this->getStatusCode(), $headers);
 	}
 
@@ -52,26 +93,30 @@ abstract class ApiController extends Controller{
 	 * @param  string $message Error message
 	 * @return json 
 	 */
-	public function respondWithError($message)
+	protected function respondWithError($message)
 	{
-		return $this->respond([
-			'error'	=> [
+		return $this->setStatus('error')->respond([
+			'data'	 => NULL,
+			'error'	 => [
 				'message' => $message,
 				'status_code' => $this->getStatusCode()
 			]
 		]);
 	}
 
-	/****** HELPERS ********/
+	public function respondWithSuccess($data)
+	{
+		return $this->setStatus('success')->respond($data);
+	}
 
 	public function respondOK($data)
 	{
-		return $this->setStatusCode(200)->respond($data);
+		return $this->setStatusCode(200)->respondWithSuccess($data);
 	}
 
 	public function respondCreated($data)
 	{
-		return $this->setStatusCode(201)->respond($data);
+		return $this->setStatusCode(201)->respondWithSuccess($data);
 	}
 
 	public function respondBadRequest($message = 'Bad Request!')
@@ -84,14 +129,26 @@ abstract class ApiController extends Controller{
 		return $this->setStatusCode(401)->respondWithError($message);
 	}
 
+	public function respondForbidden($message = 'Forbidden!')
+	{
+		return $this->setStatusCode(403)->respondWithError($message);
+	}
+
 	public function respondNotFound($message = 'Not Found!')
 	{
 		return $this->setStatusCode(404)->respondWithError($message);
 	}
 
-	public function respondNotAcceptable($message = 'Not Acceptable!')
+	public function respondFormValidation($data = NULL, $message = 'Unprocessable Entity!')
 	{
-		return $this->setStatusCode(406)->respondWithError($message);
+		return $this->setStatusCode(422)->respond([
+				'status' => 'error',
+				'data'	 => $data,
+				'error'	 => [
+					'message' => $message,
+					'status_code'	=> $this->getStatusCode()
+				]
+			]);
 	}
 
 	public function respondInternalError($message = 'Internal Error!')
