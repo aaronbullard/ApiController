@@ -1,6 +1,6 @@
 {
     "name": "aaronbullard/api",
-    "description": "",
+    "description": "Restful API parent controller for Laravel 4",
     "authors": [
         {
             "name": "aaronbullard",
@@ -15,5 +15,6 @@
         "psr-0": {
             "Aaronbullard\\Api": "src/"
         }
-    }
+    },
+    "minimum-stability": "dev"
 }
